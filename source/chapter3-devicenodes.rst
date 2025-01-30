@@ -547,6 +547,8 @@ of properties which are identical across all CPUs.
 
 The node name for every CPU node should be ``cpu``.
 
+.. _sect-cpus-general-cpu-node-properties:
+
 General Properties of ``/cpus/cpu*`` nodes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -891,9 +893,9 @@ Here is an example of a ``/cpus`` node with one child cpu node:
 Multi-level and Shared Cache Nodes (``/cpus/cpu*/l?-cache``)
 ------------------------------------------------------------
 
-Processors and systems may implement additional levels of cache hierarchy.
-For example, second-level (L2) or third-level (L3) caches.
-These caches can potentially be tightly integrated to the CPU or
+Processors and systems may implement additional levels of cache hierarchy.  For
+example, shared first-level (L1), or second-level (L2) or third-level (L3)
+caches.  These caches can potentially be tightly integrated to the CPU or
 possibly shared between multiple CPUs.
 
 A device node with a compatible value of ``"cache"`` describes these types
@@ -908,7 +910,8 @@ A cache node may be represented under a CPU node or any other
 appropriate location in the devicetree.
 
 Multiple-level and shared caches are represented with the properties in
-Table 3-9. The L1 cache properties are described in Table 3-8.
+Table 3-9. The L1 cache properties can be either described as separate layer in
+multi-level cache nodes, or in CPU node as stated in Table 3-8.
 
 .. tabularcolumns:: | p{4cm} p{0.75cm} p{4cm} p{6.5cm} |
 .. table:: ``/cpu/cpu*/l?-cache`` Node Power ISA Multiple-level and Shared Cache Properties
@@ -927,8 +930,8 @@ Table 3-9. The L1 cache properties are described in Table 3-8.
    (:numref:`sect-standard-properties`) are allowed but are optional.
 
 
-Example
-~~~~~~~
+Example 1
+~~~~~~~~~
 
 See the following example of a devicetree representation of two CPUs,
 each with their own on-chip L2 and a shared L3.
@@ -986,5 +989,55 @@ each with their own on-chip L2 and a shared L3.
                 cache-line-size = <32>; // 32 bytes
                 next-level-cache = <&L3>; // phandle to L3
             };
+        };
+    };
+
+Example 2
+~~~~~~~~~
+
+See the following example of a devicetree representation of one CPU with two
+threads. Threads are sharing L1-cache and L2-cache.
+
+.. note:: Alternatively, threads are allowed to be represented and be able to
+   share caches by using `reg` array in
+   (:numref:`sect-cpus-general-cpu-node-properties`).
+
+.. code-block:: dts
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            device_type = "cpu";
+            reg = <0>;
+            timebase-frequency = <82500000>; // 82.5 MHz
+            next-level-cache = <&L1_0>; // phandle to L1
+
+            L1_0:l1-cache {
+               compatible = "cache";
+               d-cache-block-size = <32>; // L1 - 32 bytes
+               i-cache-block-size = <32>; // L1 - 32 bytes
+               d-cache-size = <0x8000>; // L1, 32K
+               i-cache-size = <0x8000>; // L1, 32K
+               cache-level = <1>;
+               next-level-cache = <&L2_0>; // phandle to L2
+
+               L2_0:l2-cache {
+                  compatible = "cache";
+                  cache-unified;
+                  cache-size = <0x40000>; // 256 KB
+                  cache-sets = <1024>;
+                  cache-block-size = <32>;
+                  cache-level = <2>;
+               };
+            };
+        };
+
+        cpu@1 {
+            device_type = "cpu";
+            reg = <1>;
+            timebase-frequency = <82500000>; // 82.5 MHz
+            clock-frequency = <825000000>; // 825 MHz
+            next-level-cache = <&L1_0>; // phandle to L1
         };
     };
